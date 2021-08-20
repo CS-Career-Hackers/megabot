@@ -1,0 +1,36 @@
+name: Deploy Development Bot to Server
+
+on:
+  push:
+    branches: [development, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DOCKER_HOST: 'unix:///tmp/docker.sock'
+      BRANCH_NAME: ${GITHUB_REF##*/}
+      CI_ENV: $([ "$BRANCH_NAME" = master ] && echo "prod" || echo "dev")
+      COMPOSE_PROJECT_NAME: 'megabot-$CI_ENV'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: cd into project directory
+        run: cd $GITHUB_WORKSPACE
+
+      - uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Setup SSH tunnel
+        run: |
+          ssh -o 'StrictHostKeyChecking no' -fNT -L /tmp/docker.sock:/var/run/docker.sock -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}
+
+      - name: Build $CI_ENV Docker image
+        run: |
+          docker build -t cscareerhub/megabot:$CI_ENV .
+
+      - name: Deploy $CI_ENV image
+        run: |
+          docker-compose up -d

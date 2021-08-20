@@ -1,0 +1,11 @@
+version: '3.2'
+# requires env var CI_ENV to be set to either prod or dev
+
+services:
+  megabot:
+    image: cscareerhub/megabot:$CI_ENV
+    container_name: megabot-$CI_ENV
+    restart: unless-stopped
+    volumes:
+      - /home/megabot/megabot-$CI_ENV/.env:/usr/src/app/.env # this is ugly but required till we move to using Github secrets
+
